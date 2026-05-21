@@ -10,31 +10,31 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-"""This module contains code to test image builder"""
-from __future__ import absolute_import
-
-import pytest
+"""Fixtures for ModelTrainer integration tests."""
+from __future__ import annotations
 
 import os
+
 import boto3
-from sagemaker.core.helper.session_helper import Session
+import pytest
 
-DEFAULT_REGION = "us-west-2"
+import sagemaker
 
 
-@pytest.fixture(scope="module")
-def sagemaker_session():
-    region = os.environ.get("AWS_DEFAULT_REGION")
-    if not region:
-        os.environ["AWS_DEFAULT_REGION"] = DEFAULT_REGION
-        region_manual_set = True
-    else:
-        region_manual_set = True
+@pytest.fixture(scope="session")
+def region():
+    """Return the AWS region for testing."""
+    return os.environ.get("AWS_DEFAULT_REGION", "us-west-2")
 
-    boto_session = boto3.Session(region_name=os.environ["AWS_DEFAULT_REGION"])
-    sagemaker_session = Session(boto_session=boto_session)
 
-    yield sagemaker_session
+@pytest.fixture(scope="session")
+def sagemaker_session(region):
+    """Create a SageMaker session for integration tests."""
+    boto_session = boto3.Session(region_name=region)
+    return sagemaker.Session(boto_session=boto_session)
 
-    if region_manual_set and "AWS_DEFAULT_REGION" in os.environ:
-        del os.environ["AWS_DEFAULT_REGION"]
+
+@pytest.fixture(scope="session")
+def instance_type():
+    """Return the instance type for testing."""
+    return os.environ.get("SM_TEST_INSTANCE_TYPE", "ml.m5.xlarge")
