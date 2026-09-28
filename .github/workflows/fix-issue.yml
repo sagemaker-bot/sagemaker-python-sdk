@@ -1,0 +1,46 @@
+name: Fix SageMaker PySDK Issue
+
+# Self-serve trigger for the SageMaker PySDK issue-resolution agent.
+# Run from the Actions tab: enter an aws/sagemaker-python-sdk issue number.
+# The job assumes an AWS role via GitHub OIDC (no stored AWS secrets) and
+# invokes the launcher Lambda, which starts one ephemeral Fargate run.
+# Results: a draft PR appears in this fork's Pull Requests, with the full
+# reproduction / fix / validation report as the PR body.
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "aws/sagemaker-python-sdk issue number to attempt"
+        required: true
+        type: string
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::714377356608:role/PySDKIssueAgent-GithubActionsTriggerRole
+          aws-region: us-west-2
+
+      - name: Launch agent run
+        run: |
+          set -euo pipefail
+          issue='${{ inputs.issue_number }}'
+          echo "Launching agent for issue #${issue} ..."
+          aws lambda invoke \
+            --function-name PySDKIssueAgent-Launcher \
+            --cli-binary-format raw-in-base64-out \
+            --payload "$(printf '{"issue_number": %s}' "${issue}")" \
+            /tmp/out.json
+          echo "Launcher response:"
+          cat /tmp/out.json
+          echo
+          echo "A Fargate run has started. When it finishes (~10-15 min), look for a"
+          echo "draft PR in this fork's Pull Requests tab for issue #${issue}."
