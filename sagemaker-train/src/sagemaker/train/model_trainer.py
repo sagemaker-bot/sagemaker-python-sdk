@@ -767,6 +767,11 @@ class ModelTrainer(BaseModel):
         if boto3 or isinstance(self.sagemaker_session, PipelineSession):
             if isinstance(self.sagemaker_session, PipelineSession):
                 training_request.pop("training_job_name", None)
+            # An empty InputDataConfig is rejected by the SageMaker API (its
+            # botocore shape has min=1), while an absent one is accepted. Omit
+            # the key entirely when there are no channels (matches v2 behavior).
+            if not training_request.get("input_data_config"):
+                training_request.pop("input_data_config", None)
             # Convert snake_case to PascalCase for AWS API
             pipeline_request = {to_pascal_case(k): v for k, v in training_request.items()}
             serialized_request = serialize(pipeline_request)
