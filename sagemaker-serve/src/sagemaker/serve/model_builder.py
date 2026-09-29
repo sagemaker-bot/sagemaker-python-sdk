@@ -2652,8 +2652,14 @@ class ModelBuilder(_InferenceRecommenderMixin, _ModelBuilderServers, _ModelBuild
             if isinstance(self.s3_model_data_url, dict):
                 logging.warning("ModelDataSource currently doesn't support model repacking")
                 return
-            if is_pipeline_variable(self.s3_model_data_url):
-                # model is not yet there, defer repacking to later during pipeline execution
+            if is_pipeline_variable(self.s3_model_data_url) or isinstance(
+                self.sagemaker_session, PipelineSession
+            ):
+                # Under a PipelineSession the repack must be deferred to a runtime
+                # `_RepackModelStep` inserted by `ModelStep`, whether the model data is a
+                # Pipeline variable (not yet materialized) or a static S3 URI. Repacking
+                # eagerly here would bypass that step and leave the registered model without
+                # the inference code bundled in (V2 parity, see issue #5828).
                 if not isinstance(self.sagemaker_session, PipelineSession):
                     logging.warning(
                         "The model_data is a Pipeline variable of type %s, "
