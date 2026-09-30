@@ -875,7 +875,7 @@ def test_remote_debug_config(mock_training_job, modules_session):
 @patch("sagemaker.train.model_trainer._get_unique_name")
 @patch("sagemaker.train.model_trainer.TrainingJob")
 def test_model_trainer_full_init(mock_training_job, mock_unique_name, modules_session):
-    def mock_upload_data(path, bucket, key_prefix):
+    def mock_upload_data(path, bucket, key_prefix, extra_args=None):
         return f"s3://{bucket}/{key_prefix}"
 
     modules_session.upload_data.side_effect = mock_upload_data
@@ -1407,7 +1407,7 @@ def test_hyperparameters_invalid(mock_exists, modules_session):
 @patch("sagemaker.train.model_trainer._get_unique_name")
 @patch("sagemaker.train.model_trainer.TrainingJob")
 def test_model_trainer_default_paths(mock_training_job, mock_unique_name, modules_session):
-    def mock_upload_data(path, bucket, key_prefix):
+    def mock_upload_data(path, bucket, key_prefix, extra_args=None):
         return f"s3://{bucket}/{key_prefix}"
 
     unique_name = "base-job-0123456789"
@@ -1510,7 +1510,7 @@ def test_metric_definitions(mock_training_job, modules_session):
 @patch("sagemaker.train.model_trainer._get_unique_name")
 @patch("sagemaker.core.resources.TrainingJob")
 def test_nova_recipe(mock_training_job, mock_unique_name, modules_session):
-    def mock_upload_data(path, bucket, key_prefix):
+    def mock_upload_data(path, bucket, key_prefix, extra_args=None):
         if os.path.isfile(path):
             file_name = os.path.basename(path)
             return f"s3://{bucket}/{key_prefix}/{file_name}"
@@ -1773,7 +1773,7 @@ def test_nova_recipe_model_package_config_only_mpg_from_recipe(modules_session):
 @patch("sagemaker.train.model_trainer._get_unique_name")
 @patch("sagemaker.train.model_trainer.TrainingJob")
 def test_llmft_recipe(mock_training_job, mock_unique_name, modules_session):
-    def mock_upload_data(path, bucket, key_prefix):
+    def mock_upload_data(path, bucket, key_prefix, extra_args=None):
         if os.path.isfile(path):
             file_name = os.path.basename(path)
             return f"s3://{bucket}/{key_prefix}/{file_name}"
