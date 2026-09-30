@@ -245,7 +245,7 @@ class MultiTurnRLTrainer(BaseTrainer):
         if s3_output_path is None:
             self.s3_output_path = _get_default_s3_output_path(session)
             logger.info("Using default S3 output path: %s", self.s3_output_path)
-        _validate_s3_path_exists(self.s3_output_path, session)
+        _validate_s3_path_exists(self.s3_output_path, session, kms_key_id=self.kms_key_arn)
 
         self.output_model_package_group = self._resolve_model_package_group(
             model, output_model_package_group, session

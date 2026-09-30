@@ -622,7 +622,7 @@ class TestFinetuneUtils:
         
         assert config.s3_output_path == "s3://bucket/output"
         assert config.kms_key_id == "kms-key"
-        mock_validate_s3.assert_called_once_with("s3://bucket/output", mock_session)
+        mock_validate_s3.assert_called_once_with("s3://bucket/output", mock_session, kms_key_id="kms-key")
 
     def test__convert_input_data_to_channels(self):
 
