@@ -118,7 +118,10 @@ class ModelStep(ConfigurableRetryStep):
                     " should be provided. They are mutually exclusive. Please use the model's "
                     ".create() or .register() method to generate the step_args under PipelineSession."
                 )
-            if not isinstance(step_args.model.sagemaker_session, PipelineSession):
+            model_sagemaker_session = getattr(step_args.model, "sagemaker_session", None)
+            if model_sagemaker_session is not None and not isinstance(
+                model_sagemaker_session, PipelineSession
+            ):
                 raise TypeError(
                     "To correctly configure a ModelStep, "
                     "the sagemaker_session of the model must be a PipelineSession object."
