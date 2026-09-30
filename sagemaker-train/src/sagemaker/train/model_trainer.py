@@ -863,6 +863,22 @@ class ModelTrainer(BaseModel):
         if self._temp_code_dir is not None:
             self._temp_code_dir.cleanup()
 
+    def _upload_extra_args(self) -> Optional[Dict[str, str]]:
+        """Build S3 ``ExtraArgs`` for source-code uploads.
+
+        When an output KMS key is configured (via ``output_data_config.kms_key_id``),
+        source-code and driver uploads must be encrypted with that key so that buckets
+        enforcing SSE-KMS accept the objects. Returns ``None`` when no KMS key is set,
+        preserving the default (unencrypted-arg) upload behavior.
+        """
+        kms_key_id = getattr(self.output_data_config, "kms_key_id", None)
+        if not kms_key_id:
+            return None
+        return {
+            "ServerSideEncryption": "aws:kms",
+            "SSEKMSKeyId": kms_key_id,
+        }
+
     def _resolve_staging_bucket(self) -> tuple[str,str]:
         """Resolve the S3 bucket and key prefix for staging training artifacts.
 
@@ -1042,6 +1058,9 @@ class ModelTrainer(BaseModel):
                     # Resolve staging bucket based on training role permissions
                     staging_bucket, staging_prefix = self._resolve_staging_bucket()
                     effective_prefix = f"{staging_prefix}/{key_prefix}" if staging_prefix else key_prefix
+                    # Apply the configured output KMS key to source-code uploads so that
+                    # staging buckets that enforce SSE-KMS accept the objects.
+                    extra_args = self._upload_extra_args()
                     if ignore_patterns and _is_valid_path(data_source, path_type="Directory"):
                         tmp_dir = TemporaryDirectory()
                         copied_path = os.path.join(
@@ -1057,12 +1076,14 @@ class ModelTrainer(BaseModel):
                             path=copied_path,
                             bucket=staging_bucket,
                             key_prefix=effective_prefix,
+                            extra_args=extra_args,
                         )
                     else:
                         s3_uri = self.sagemaker_session.upload_data(
                             path=data_source,
                             bucket=staging_bucket,
                             key_prefix=effective_prefix,
+                            extra_args=extra_args,
                         )
                     channel = Channel(
                         channel_name=channel_name,
