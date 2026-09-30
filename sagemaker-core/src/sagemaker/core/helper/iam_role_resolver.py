@@ -309,6 +309,33 @@ def _resolve_caller_role_arn(
 # ---------------------------------------------------------------------------
 # Read-only permission / trust validation
 # ---------------------------------------------------------------------------
+def _is_org_layer_only_denial(result: dict) -> bool:
+    """Return True if a simulate verdict is denied *only* at the Organizations/SCP layer.
+
+    The IAM policy simulator does not evaluate SCPs that carry any conditions, so
+    in an account whose organization uses condition-based SCPs it returns
+    ``AllowedByOrganizations == false`` (with ``EvalDecision: implicitDeny`` and no
+    matched statements) even for actions the role is actually allowed to perform at
+    run time. Such a verdict is *unverifiable*, not authoritative — there is no
+    matched identity Deny and no non-org reason for the denial. We treat it like the
+    "caller can't simulate" path (warn + proceed) rather than as a real permission
+    gap, letting the real API call be the source of truth. See issue #6019 and
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
+    """
+    org_detail = result.get("OrganizationsDecisionDetail")
+    if not org_detail:
+        return False
+    allowed_by_orgs = org_detail.get("AllowedByOrganizations")
+    # Normalize the boolean (the API/serializers may surface it as a string).
+    if isinstance(allowed_by_orgs, str):
+        allowed_by_orgs = allowed_by_orgs.lower() == "true"
+    if allowed_by_orgs is not False:
+        return False
+    # Only unverifiable when nothing else matched — an explicit identity Deny would
+    # show up as a matched statement and must still block.
+    return not result.get("MatchedStatements")
+
+
 def _simulate_denied_actions(iam_client, role_arn: str, actions: List[str]) -> List[str]:
     """Return the subset of ``actions`` that ``role_arn`` is NOT allowed to perform.
 
@@ -316,6 +343,10 @@ def _simulate_denied_actions(iam_client, role_arn: str, actions: List[str]) -> L
     validation path and the HyperPod caller-side check share one implementation.
     An empty list means every action is allowed. The pagination matters: a
     truncated first page must not produce a false "all allowed" verdict.
+
+    Denials that come *only* from the Organizations/SCP layer (the simulator can't
+    evaluate condition-based SCPs) are excluded — they are unverifiable, not real
+    permission gaps. See :func:`_is_org_layer_only_denial`.
 
     Raises ClientError on failures the caller must interpret (e.g. AccessDenied
     when the principal can't self-simulate, NoSuchEntity when the role is gone).
@@ -328,7 +359,7 @@ def _simulate_denied_actions(iam_client, role_arn: str, actions: List[str]) -> L
     return [
         result["EvalActionName"]
         for result in evaluation_results
-        if result["EvalDecision"] != "allowed"
+        if result["EvalDecision"] != "allowed" and not _is_org_layer_only_denial(result)
     ]
 
 
