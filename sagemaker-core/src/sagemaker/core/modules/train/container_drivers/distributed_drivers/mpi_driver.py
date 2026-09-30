@@ -75,6 +75,14 @@ def main():
 
     """
     entry_script = os.environ["SM_ENTRY_SCRIPT"]
+    # ``mpirun`` launches the training processes on worker nodes over a fresh SSH
+    # login whose working directory is the home directory, not the source code
+    # directory. A relative entry-script path therefore cannot be resolved on the
+    # workers, so we make it absolute against the source code directory.
+    if not os.path.isabs(entry_script):
+        entry_script = os.path.join(
+            os.environ.get("SM_SOURCE_DIR", "/opt/ml/input/data/code"), entry_script
+        )
     distributed_config = json.loads(os.environ["SM_DISTRIBUTED_CONFIG"])
     hyperparameters = json.loads(os.environ["SM_HPS"])
 
