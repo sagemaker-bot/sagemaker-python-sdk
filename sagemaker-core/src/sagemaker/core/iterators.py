@@ -175,7 +175,12 @@ class LineIterator(BaseIterator):
                 chunk = next(self.byte_iterator)
             except StopIteration:
                 if self.read_pos < self.buffer.getbuffer().nbytes:
-                    continue
+                    # Stream ended without a trailing newline; return the
+                    # remaining buffered bytes as the final line.
+                    self.buffer.seek(self.read_pos)
+                    line = self.buffer.read()
+                    self.read_pos += len(line)
+                    return line
                 raise
             if "PayloadPart" not in chunk:
                 # handle API response errors and force terminate.
