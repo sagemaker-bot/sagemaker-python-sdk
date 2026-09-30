@@ -67,7 +67,12 @@ version = { file = "VERSION"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["sagemaker*"]
+# Only ship the sub-packages owned by sagemaker-mlops. The top-level
+# ``sagemaker`` namespace package (and its ``__init__.py``) is owned solely by
+# sagemaker-core; shipping it here too would install a second file at
+# ``site-packages/sagemaker/__init__.py`` and conflict with sagemaker-core on
+# installation (issue #5795).
+include = ["sagemaker.mlops*"]
 namespaces = true
 
 [tool.pytest.ini_options]
